@@ -143,22 +143,24 @@ def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 		dx = img.shape[1]
 
 		# This assumes that the image is in the correct resolution already - Poor assumption to make
-		desired_y = dy * 0.1
-		desired_x = dx * 0.1
+		desired_y = int(dy * 0.1)
+		desired_x = int(dx * 0.1)
 
 		# 
 		cur_bottom_y = dy - (y + h)
 		print(cur_bottom_y)
 		curp_bottom_y = cur_bottom_y / dy
+		print(f'curp_bottom_y: {curp_bottom_y}')
 		cur_top_y = y
 		curp_top_y = cur_top_y / dy
-		curp_y = dy / (cur_bottom_y + cur_top_y)
+		curp_y = (cur_bottom_y + cur_top_y) / dy
+		print(f'curp_y: {curp_y}')
 
 		cur_left_x = x
 		curp_left_x = cur_left_x / dx
 		cur_right_x = (dx - x) - w
 		curp_right_x = cur_right_x / dy
-		curp_x = dx / (cur_left_x + cur_right_x)
+		curp_x = (cur_left_x + cur_right_x) / dx
 
 		# =====================================================================================================
 
@@ -327,8 +329,8 @@ if __name__ == '__main__':
 
 	for filename in os.listdir(input_dir):
 		if not filename.startswith('.'):
+			print(filename)
 			cleaner.main(filename, input_dir, output_dir, dimension_x, dimension_x)
 			gc.collect()
-			print(filename)
 
 	print('Finished editing!')
