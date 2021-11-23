@@ -163,7 +163,6 @@ def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 		curp_x = (cur_left_x + cur_right_x) / dx
 
 		# =====================================================================================================
-
 		# =================================== Increasing border size ==========================================
 		if curp_y < 0.2 or curp_x < 0.2:
 			bottom = 0
