@@ -107,16 +107,12 @@ class imageClean():
 	def resize(self, img_res: str, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 
 		img_border = border_remove(img_res, dim_x, dim_y, x, y, w, h)
-
-		cv2.imshow('Image border', img_border)
-		cv2.waitKey(0)
-
 		img_square = square_image(img_border, dim_x, dim_y)
-
 		return img_square
 
 
 	def save(self, final_img, output_dir: str, filename: str):
+
 		folder = filename.split('-')
 
 		file_split = filename.split('.')
@@ -146,7 +142,7 @@ def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 		dy = img.shape[0]
 		dx = img.shape[1]
 
-		# CORRECT
+		# This assumes that the image is in the correct resolution already - Poor assumption to make
 		desired_y = dy * 0.1
 		desired_x = dx * 0.1
 
@@ -183,6 +179,7 @@ def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 				print('curp_bot_y calc')
 				bottom = desired_y - cur_bottom_y
 			if curp_top_y < 0.1:
+				print('curp_top_y calc')
 				top = desired_y - cur_top_y
 
 			if curp_left_x < 0.1:
