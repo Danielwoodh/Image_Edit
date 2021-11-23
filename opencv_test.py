@@ -139,50 +139,110 @@ def open_folder():
     root.withdraw()
     return root.filename
 
+
 # FIX IMAGES NOT BEING RESIZED / SQUARED PROPERLY
 def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 		# Finding current dimensions of the image
 		dy = img.shape[0]
 		dx = img.shape[1]
 
-		cur_bottom_y = dy - y
-		curp_bottom_y = cur_y / dy
-		desp_bottom_y = abs(curp_bottom_y - 0.1) / ((curp_bottom_y + 0.1) / 2)
+		# CORRECT
+		desired_y = dy * 0.1
+		desired_x = dx * 0.1
 
-		cur_top_y = y - h
+		# 
+		cur_bottom_y = dy - (y + h)
+		print(cur_bottom_y)
+		curp_bottom_y = cur_bottom_y / dy
+		cur_top_y = y
 		curp_top_y = cur_top_y / dy
-		desp_top_y = abs(curp_top_y - 0.1) / ((curp_top_y + 0.1) / 2)
-
 		curp_y = dy / (cur_bottom_y + cur_top_y)
 
 		cur_left_x = x
 		curp_left_x = cur_left_x / dx
-		desp_left_x = abs(curp_left_x - 0.1) / ((curp_left_x + 0.1) / 2)
-
 		cur_right_x = (dx - x) - w
 		curp_right_x = cur_right_x / dy
-		desp_right_x = abs(curp_right_x - 0.1) / ((curp_right_x + 0.1) / 2)
-
 		curp_x = dx / (cur_left_x + cur_right_x)
 
 		# =====================================================================================================
 
 		# =================================== Increasing border size ==========================================
-		if curp_y < 0.1 and curp_x < 0.1:
-			bottom = int(desp_bottom_y * img.shape[0])
-			top = int(desp_top_y * img.shape[0])
+		if curp_y < 0.2 or curp_x < 0.2:
+			bottom = 0
+			top = 0
+			left = 0
+			right = 0
 
-			left = int(desp_left_x * img.shape[1])
-			right = int(desp_right_x * img.shape[1])
+			desp_bottom_y = ((desired_y - cur_bottom_y) / cur_bottom_y)
+			desp_top_y = ((desired_y - cur_top_y) / cur_top_y)
+
+			desp_left_x = ((desired_x - cur_left_x) / cur_left_x)
+			desp_right_x = ((desired_x - cur_left_x) / cur_left_x)
+
+			if curp_bottom_y < 0.1:
+				print('curp_bot_y calc')
+				bottom = desired_y - cur_bottom_y
+			if curp_top_y < 0.1:
+				top = desired_y - cur_top_y
+
+			if curp_left_x < 0.1:
+				left = desired_x - cur_left_x
+			if curp_right_x < 0.1:
+				right = desired_x - cur_right_x
 
 			img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, None, (255, 255, 255))
-		# ======================================= Decreasing border size ========================================
-		elif curp_y > 0.1 and curp_x > 0.1:
-			pix_reduce_top = int(cur_top_y - (desp_top_y * cur_top_y))
-			pix_reduce_bottom = int(cur_bottom_y - (desp_bottom_y * cur_top_y))
 
-			pix_reduce_left = int(cur_left_x - (desp_left_x * cur_left_x))
-			pix_reduce_right = int(cur_right_x - (desp_right_x * cur_right_x))
+			if dy <= dim_y and dx > dim_x:
+				ratio = dim_y / float(dy)
+				img = cv2.resize(img, (int(dx* ratio), dim_y), interpolation=cv2.INTER_CUBIC)
+				return img
+
+			elif dy > dim_y and dx <= dim_x:
+				ratio = dim_x / float(dx)
+				img = cv2.resize(img, (dim_x, int(dy * ratio)), interpolation=cv2.INTER_CUBIC)
+				return img
+
+			elif dy <= dim_y and dx <= dim_x:
+				dif_x = dim_x - dx
+				dif_y = dim_y - dy
+
+				if dif_y > dif_x:
+					ratio = dim_y / float(dy)
+					img = cv2.resize(img, (int(dx * ratio), dim_y), interpolation=cv2.INTER_CUBIC)
+					return img
+
+				else:
+					ratio = dim_x / float(dx)
+					img = cv2.resize(img, (dim_x, int(dy * ratio)), interpolation=cv2.INTER_CUBIC)
+					return img
+
+			elif dy > dim_y and dx > dim_x:
+				ratio = dim_y / float(dy)
+				img = cv2.resize(img, (int(dx * ratio), dim_y), interpolation=cv2.INTER_AREA)
+				return img
+		# ======================================= Decreasing border size ========================================
+		elif curp_y > 0.2 and curp_x > 0.2:
+			pix_reduce_top = 0
+			pix_reduce_bottom = 0
+
+			pix_reduce_right = 0
+			pix_reduce_left = 0
+
+			desp_top_y = ((cur_top_y - desired_y) / cur_top_y)
+			desp_bottom_y = ((cur_bottom_y - desired_y) / cur_bottom_y)
+
+			desp_left_x = ((cur_left_x - desired_x) / cur_left_x)
+			desp_right_x = ((cur_right_x - desired_x) / cur_right_x)
+
+			if curp_top_y > 0.1:
+				pix_reduce_top = int(desp_top_y * cur_top_y)
+			if curp_bottom_y > 0.1:
+				pix_reduce_bottom = int(desp_bottom_y * cur_bottom_y)
+
+			if curp_left_x > 0.1:
+				pix_reduce_left = int(desp_left_x * cur_left_x)
+			if curp_right_x > 0.1:
+				pix_reduce_right = int(desp_right_x * cur_right_x)
 
 			img = img[0:(dy - pix_reduce_bottom), 0:(dx - pix_reduce_right)]
 			dx = dx - pix_reduce_right
@@ -192,180 +252,26 @@ def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 			dx = dx - pix_reduce_left
 			dy = dy - pix_reduce_top
 
-			
+			if dy > dim_y:
+				if dx == dy:
+					img = cv2.resize(img, (dim_x, dim_y), interpolation=cv2.INTER_AREA)
+					return img
+
+				else:
+					ratio = dim_y / float(dy)
+					img = cv2.resize(img, (int(dx*ratio), dim_y), interpolation=cv2.INTER_AREA)
+					return img
+
+			elif dy <= dim_y:
+				if dx == dy:
+					img = cv2.resize(img, (dim_x, dim_y), interpolation=cv2.INTER_CUBIC)
+					return img
+				else:
+					ratio = dim_y / float(dy)
+					img = cv2.resize(img, (int(dx * ratio), dim_y), interpolation=cv2.INTER_CUBIC)
+					return img
 
 			return img
-		# =======================================================================================================
-			# print('Border Creation')
-			# if cur_y > cur_x:
-			# 	if dy > dim_y:
-			# 		desp_y = abs(curp_y - 0.1) / ((curp_y + 0.1) / 2)
-			# 		# abs((0.1 - curp_y) / curp_y)
-
-			# 		top = int(desp_y * img.shape[0])
-			# 		print(f'top: {top}')
-			# 		bottom = top
-			# 		dy = dy + (top * 2)
-
-			# 		img = cv2.copyMakeBorder(img, top, bottom, 0, 0, cv2.BORDER_CONSTANT, None, (255, 255, 255))
-			# 		return img
-
-			# 	elif dy <= dim_y:
-			# 		desp_y = abs(curp_y - 0.1) / ((curp_y + 0.1) / 2)
-
-			# 		top = int(desp_y * img.shape[0])
-			# 		bottom = top
-			# 		dy = dy + (top * 2)
-			# 		ratio = dim_y / float(dy)
-
-			# 		img = cv2.copyMakeBorder(img, top, bottom, 0, 0, cv2.BORDER_CONSTANT, None, (255, 255, 255))
-			# 		img = cv2.resize(img, (int(dim_x*ratio), dim_y), interpolation=cv2.INTER_CUBIC)
-			# 		return img
-
-			# elif cur_y < cur_x:
-			# 	if dx > dim_x:
-			# 		desp_x = abs(curp_x - 0.1) / ((curp_x + 0.1) / 2)
-
-			# 		left = int(desp_x * img.shape[1])
-			# 		right = left
-			# 		dx = dx + (left * 2)
-
-			# 		img = cv2.copyMakeBorder(img, 0, 0, left, right, cv2.BORDER_CONSTANT, None, (255, 255, 255))
-			# 		return img
-
-			# 	elif dx <= dim_x:
-			# 		desp_x = abs(curp_x - 0.1) / ((curp_x + 0.1) / 2)
-			# 		# abs((0.1 - curp_x) / curp_x)
-
-			# 		left = int(desp_x * img.shape[1])
-			# 		right = left
-			# 		dx = dx + (left * 2)
-			# 		ratio = dim_x / float(dx)
-
-			# 		img = cv2.copyMakeBorder(img, 0, 0, left, right, cv2.BORDER_CONSTANT, None, (255, 255, 255))
-			# 		img = cv2.resize(img, (dim_x, int(dim_y*ratio)), interpolation=cv2.INTER_CUBIC)
-			# 		return img
-		# =======================================================================================================
-
-		# ======================================= Decreasing border size ========================================
-		# elif curp_y > 0.1 and curp_x > 0.1:
-		# 	if cur_y < cur_x:
-		# 		desp_y = abs(curp_y - 0.1) / ((curp_y + 0.1) / 2)
-		# 		# abs((curp_y - 0.1) / 0.1)
-		# 		print(f'desp_y: {desp_y}')
-		# 		pix_reduce = int(cur_y - ((desp_y * cur_y) / 2))
-
-		# 		img = img[0:(dy - pix_reduce), 0:(dx - pix_reduce)]
-		# 		print(f'dx-pixred {dx - pix_reduce}')
-		# 		dy = dy - pix_reduce
-		# 		dx = dx - pix_reduce
-		# 		img = img[(0 + pix_reduce):dy, (0 + pix_reduce):dx]
-		# 		dy = dy - pix_reduce
-		# 		dx = dx - pix_reduce
-		# 		if dy > dim_y:
-		# 			if dx == dy:
-		# 				img = cv2.resize(img, (dim_x, dim_y), interpolation=cv2.INTER_AREA)
-		# 				return img
-
-		# 			else:
-		# 				ratio = dim_y / float(dy)
-		# 				img = cv2.resize(img, (int(dim_x*ratio), dim_y), interpolation=cv2.INTER_AREA)
-		# 				return img
-						
-		# 		elif dy <= dim_y:
-		# 			if dx == dy:
-		# 				img = cv2.resize(img, (dim_x, dim_y), interpolation=cv2.INTER_CUBIC)
-		# 				return img
-
-		# 			else:
-		# 				ratio = dim_y / float(dy)
-		# 				img = cv2.resize(img, (int(dim_x*ratio), dim_y), interpolation=cv2.INTER_CUBIC)
-		# 				return img
-
-		# 	elif cur_y >= cur_x:
-		# 		desp_x = abs(curp_x - 0.1) / ((curp_x + 0.1) / 2)
-		# 		# abs((curp_x - 0.1) / 0.1)
-		# 		print(f'desp_x: {desp_x}')
-		# 		pix_reduce = int(cur_x - ((desp_x * cur_x) / 2))
-		# 		print(f'pix_reduce: {pix_reduce}')
-
-		# 		img = img[0:(dy - pix_reduce), 0:(dx - pix_reduce)]
-		# 		dy = dy - pix_reduce
-		# 		dx = dx - pix_reduce
-		# 		img = img[(0 + pix_reduce):dy, (0 + pix_reduce):dx]
-		# 		dy = dy - pix_reduce
-		# 		dx = dx - pix_reduce
-
-		# 		if dx > dim_x:
-		# 			if dx == dy:
-		# 				img = cv2.resize(img, (dim_x, dim_y), interpolation=cv2.INTER_AREA)
-		# 				return img
-
-		# 			else:
-		# 				ratio = dim_x / float(dx)
-		# 				img = cv2.resize(img, (dim_x, int(ratio*dim_y)), interpolation=cv2.INTER_AREA)
-		# 				return img
-
-		# 		elif dx <= dim_x:
-		# 			if dx == dy:
-		# 				img = cv2.resize(img, (dim_x, dim_y), interpolation=cv2.INTER_CUBIC)
-		# 				return img
-
-		# 			else:
-		# 				ratio = dim_x / float(dx)
-		# 				img = cv2.resize(img, (dim_x, int(ratio*dim_y)), interpolation=cv2.INTER_AREA)
-		# 				return img
-		# 	elif curp_y < 0.1 and curp_x > 0.1:
-		# 		if dy > dim_y:
-		# 			desp_y = abs(curp_y - 0.1) / ((curp_y + 0.1) / 2)
-		# 			# abs((0.1 - curp_y) / curp_y)
-
-		# 			top = int(desp_y * img.shape[0])
-		# 			print(f'top: {top}')
-		# 			bottom = top
-		# 			dy = dy + (top * 2)
-
-		# 			img = cv2.copyMakeBorder(img, top, bottom, 0, 0, cv2.BORDER_CONSTANT, None, (255, 255, 255))
-		# 			return img
-
-		# 		elif dy <= dim_y:
-		# 			desp_y = abs(curp_y - 0.1) / ((curp_y + 0.1) / 2)
-
-		# 			top = int(desp_y * img.shape[0])
-		# 			bottom = top
-		# 			dy = dy + (top * 2)
-		# 			ratio = dim_y / float(dy)
-
-		# 			img = cv2.copyMakeBorder(img, top, bottom, 0, 0, cv2.BORDER_CONSTANT, None, (255, 255, 255))
-		# 			img = cv2.resize(img, (int(dim_x*ratio), dim_y), interpolation=cv2.INTER_CUBIC)
-		# 			return img
-
-		# 	elif curp_y > 0.1 and curp_x < 0.1:
-		# 		if dx > dim_x:
-		# 			desp_x = abs(curp_x - 0.1) / ((curp_x + 0.1) / 2)
-
-		# 			left = int(desp_x * img.shape[1])
-		# 			right = left
-		# 			dx = dx + (left * 2)
-
-		# 			img = cv2.copyMakeBorder(img, 0, 0, left, right, cv2.BORDER_CONSTANT, None, (255, 255, 255))
-		# 			return img
-
-		# 		elif dx <= dim_x:
-		# 			desp_x = abs(curp_x - 0.1) / ((curp_x + 0.1) / 2)
-		# 			# abs((0.1 - curp_x) / curp_x)
-
-		# 			left = int(desp_x * img.shape[1])
-		# 			right = left
-		# 			dx = dx + (left * 2)
-		# 			ratio = dim_x / float(dx)
-
-		# 			img = cv2.copyMakeBorder(img, 0, 0, left, right, cv2.BORDER_CONSTANT, None, (255, 255, 255))
-		# 			img = cv2.resize(img, (dim_x, int(dim_y*ratio)), interpolation=cv2.INTER_CUBIC)
-		# 			return img
-		# 	else:
-		# 		return img
-			# =================================================================================================
 
 
 def square_image(img, dim_x: int, dim_y: int):
