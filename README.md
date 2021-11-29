@@ -1,4 +1,5 @@
 # Image_Edit
+This program was created to automatically edit images, removing the background, squaring the image and ensuring a consistent border size across all images (10%).
 
 ## Installation
 ### Pre-requisites:
