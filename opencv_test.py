@@ -43,12 +43,16 @@ class imageClean():
 		img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 		# Blurring image, gives more defined boundaries for edge detection
 		img_blur = cv2.GaussianBlur(img_gray, (3, 3), 0)
+
 		# Canny edge detection
-		img_canny = cv2.Canny(img_blur, 100, 200, 3)
+		img_canny = cv2.Canny(img_blur, 85, 255, 3)
 
 		# Dilating and eroding to fill blank areas
 		img_dil = cv2.dilate(img_canny, None)
 		img_ero = cv2.erode(img_dil, None)
+
+		cv2.imshow("canny", img_ero)
+		cv2.waitKey(0)
 
 		return img_ero
 
@@ -56,8 +60,8 @@ class imageClean():
 	def contours(self, img, img_ero):
 		contour_info = []
 
-		# Finding contours from the Canny image
-		contours, _ = cv2.findContours(img_ero, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+		# Finding contours from the Canny image, TEST WITH RETR_EXTERNAL AND RETR_LIST
+		contours, _ = cv2.findContours(img_ero, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
 		for c in contours:
 			contour_info.append((
@@ -70,6 +74,17 @@ class imageClean():
 		max_contour = contour_info[0]
 
 		x, y, w, h = cv2.boundingRect(max_contour[0])
+
+		if len(contour_info) > 1:
+			if contour_info[1][2] >= (0.75 * contour_info[0][2]):
+				x2, y2, w2, h2 = cv2.boundingRect(contour_info[1][0])
+
+				min_y, max_y = min(y, y2), max((y+h), (y2+h2))
+				min_x, max_x = min(x, x2), max((x+w), (x2+w2))
+				w = max_x - min_x
+				h = max_y - min_y
+				x = min_x
+				y = min_y
 
 		# Constructing a mask
 		mask = 255*np.ones(img_ero.shape)
@@ -142,19 +157,14 @@ def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 		dy = img.shape[0]
 		dx = img.shape[1]
 
-		# This assumes that the image is in the correct resolution already - Poor assumption to make
 		desired_y = int(dy * 0.1)
 		desired_x = int(dx * 0.1)
 
-		# 
 		cur_bottom_y = dy - (y + h)
-		print(cur_bottom_y)
 		curp_bottom_y = cur_bottom_y / dy
-		print(f'curp_bottom_y: {curp_bottom_y}')
 		cur_top_y = y
 		curp_top_y = cur_top_y / dy
 		curp_y = (cur_bottom_y + cur_top_y) / dy
-		print(f'curp_y: {curp_y}')
 
 		cur_left_x = x
 		curp_left_x = cur_left_x / dx
@@ -177,10 +187,8 @@ def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 			desp_right_x = ((desired_x - cur_left_x) / cur_left_x)
 
 			if curp_bottom_y < 0.1:
-				print('curp_bot_y calc')
 				bottom = desired_y - cur_bottom_y
 			if curp_top_y < 0.1:
-				print('curp_top_y calc')
 				top = desired_y - cur_top_y
 
 			if curp_left_x < 0.1:
