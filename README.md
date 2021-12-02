@@ -7,6 +7,7 @@ This program was created to automatically edit images, removing the background, 
 2. Tap this version of brew (Follow instructions on the github page): https://github.com/esimov/homebrew-opencv
 3. In the terminal type the following command ```brew install theora```
 4. Build OpenCV from source, following this guide: https://www.timpoulsen.com/2018/build-opencv-and-install-from-source.html
+5. If step 4. does not work, try following the instructions here: https://docs.opencv.org/4.x/d0/db2/tutorial_macos_install.html
 
 ### Program Installation:
 1. From the terminal, cd to the desired install location and type the following command: ```git clone https://github.com/Danielwoodh/Image_Edit.git```
