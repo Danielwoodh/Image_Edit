@@ -24,6 +24,31 @@ from tkinter import Tk, filedialog
 import gc
 
 
+class CropLayer(object):
+    def __init__(self, params, blobs):
+        self.xstart = 0
+        self.xend = 0
+        self.ystart = 0
+        self.yend = 0
+ 
+    # Our layer receives two inputs. We need to crop the first input blob
+    # to match a shape of the second one (keeping batch size and number of channels)
+    def getMemoryShapes(self, inputs):
+        inputShape, targetShape = inputs[0], inputs[1]
+        batchSize, numChannels = inputShape[0], inputShape[1]
+        height, width = targetShape[2], targetShape[3]
+ 
+        self.ystart = (inputShape[2] - targetShape[2]) // 2
+        self.xstart = (inputShape[3] - targetShape[3]) // 2
+        self.yend = self.ystart + height
+        self.xend = self.xstart + width
+ 
+        return [[batchSize, numChannels, height, width]]
+ 
+    def forward(self, inputs):
+        return [inputs[0][:,:,self.ystart:self.yend,self.xstart:self.xend]]
+
+
 class imageClean():
 	'''
 	This class encompasses the methods to remove the background from images
@@ -97,7 +122,7 @@ class imageClean():
 
 		x, y, w, h = cv2.boundingRect(max_contour[0])
 
-		if x == 0 or y == 0:
+		if x == 0 or y == 0 or w == img_ero.shape[1] or h == img_ero.shape[0]:
 			print(f'File: {filename} failed. Attempting again with Neural Network.')
 			cv2.dnn_registerLayer('Crop', CropLayer)
 			net = cv2.dnn.readNet('deploy.prototxt', 'hed_pretrained_bsds.caffemodel')
@@ -387,31 +412,6 @@ def square_image(img, dim_x: int, dim_y: int):
 		return img
 
 
-class CropLayer(object):
-    def __init__(self, params, blobs):
-        self.xstart = 0
-        self.xend = 0
-        self.ystart = 0
-        self.yend = 0
- 
-    # Our layer receives two inputs. We need to crop the first input blob
-    # to match a shape of the second one (keeping batch size and number of channels)
-    def getMemoryShapes(self, inputs):
-        inputShape, targetShape = inputs[0], inputs[1]
-        batchSize, numChannels = inputShape[0], inputShape[1]
-        height, width = targetShape[2], targetShape[3]
- 
-        self.ystart = (inputShape[2] - targetShape[2]) // 2
-        self.xstart = (inputShape[3] - targetShape[3]) // 2
-        self.yend = self.ystart + height
-        self.xend = self.xstart + width
- 
-        return [[batchSize, numChannels, height, width]]
- 
-    def forward(self, inputs):
-        return [inputs[0][:,:,self.ystart:self.yend,self.xstart:self.xend]]
-
-
 if __name__ == '__main__':
 	cleaner = imageClean()
 
@@ -438,4 +438,6 @@ if __name__ == '__main__':
 			gc.collect()
 
 	print('\nFinished editing!')
-	print(f'\nError editing files: {errors}')
+
+	if errors:
+		print(f'\nError editing files: {errors}')
