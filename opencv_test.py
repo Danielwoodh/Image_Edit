@@ -1,3 +1,20 @@
+'''
+Daniel Woodhall - OpenCV Image resizing/border-removal
+This script takes a series of input images and a desired border size (X, Y), to convert the inputs to squared
+images with the desired border size. Images should be output in a uniform manner.
+
+Notes/Potential issues:
+- If there are more than 3 objects of importance within the input image, the script will not work as intended.
+However, this could be changed if necessary
+
+- If the input image is a smaller resolution than the desired output image it will be increased in size, which may
+result in loss of image fidelity.
+
+- As the output image is required to be JPEG, converting from other image formats (eg. PNG) will cause some loss of
+fidelity due to the conversion from a lossless file format (PNG) to a lossy file format (JPEG). Ideally, the website
+should be able to handle .PNG files as this would eliminate this; although it is not necessary.
+'''
+
 import cv2
 import numpy as np
 import io
@@ -12,33 +29,39 @@ class imageClean():
 	This class encompasses the methods to remove the background from images
 	'''
 
-	def main(self, filename: str, input_dir: str, output_dir: str, dim_x: int, dim_y: int):
+	def main(self, errors: list, filename: str, input_dir: str, output_dir: str, dim_x: int, dim_y: int, insensitivity: float):
 		'''
 		Main file, calling the instantiated methods from within the imageClean class
 		'''
 
 		img = self.openFile(filename, input_dir)
 
-		img_ero = self.canny(img)
+		img_ero, img_blur = self.canny(img)
 
-		mask_stack, x, y, w, h = self.contours(img, img_ero)
+		mask_stack, x, y, w, h = self.contours(img_blur, img_ero, insensitivity)
 
 		img_comb = self.combine(mask_stack, img)
 
-		img_res = self.resize(img_comb, dim_x, dim_y, x, y, w, h)
+		img_res = self.resize(filename, img_comb, dim_x, dim_y, x, y, w, h)
 
 		del img, img_ero, mask_stack, x, y, w, h, img_comb
 
 		self.save(img_res, output_dir, filename)
 
+		return errors
+
 
 	def openFile(self, filename: str, input_dir: str):
+		# Opens the files using cv2
 		img = cv2.imread(f'{input_dir}/{filename}', cv2.IMREAD_UNCHANGED)
 
 		return img
 
 
 	def canny(self, img):
+		'''
+		Function to convert image and detect edges using Canny.
+		'''
 		# Converting to grayscale
 		img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 		# Blurring image, gives more defined boundaries for edge detection
@@ -47,17 +70,15 @@ class imageClean():
 		# Canny edge detection
 		img_canny = cv2.Canny(img_blur, 85, 255, 3)
 
-		# Dilating and eroding to fill blank areas
+		# Dilating and eroding to fill blank areas in edge mesh
 		img_dil = cv2.dilate(img_canny, None)
 		img_ero = cv2.erode(img_dil, None)
 
-		cv2.imshow("canny", img_ero)
-		cv2.waitKey(0)
-
-		return img_ero
+		return img_ero, img_blur
 
 
-	def contours(self, img, img_ero):
+	def contours(self, img_blur, img_ero, insensitivity: float):
+		# Constructing contours from the binary edge detected image
 		contour_info = []
 
 		# Finding contours from the Canny image, TEST WITH RETR_EXTERNAL AND RETR_LIST
@@ -71,12 +92,17 @@ class imageClean():
 			))
 
 		contour_info = sorted(contour_info, key=lambda c: c[2], reverse=True)
+
 		max_contour = contour_info[0]
 
 		x, y, w, h = cv2.boundingRect(max_contour[0])
 
+		cv2.drawContours(img_ero, max_contour[0], 0, (0, 255, 0), thickness=10)
+
+		# Checking if there are two substantial contours (such as images with pairs of items)
 		if len(contour_info) > 1:
-			if contour_info[1][2] >= (0.75 * contour_info[0][2]):
+			if contour_info[1][2] >= (insensitivity * contour_info[0][2]):
+				# Calculating a new bounding rectangle to encompass both contours
 				x2, y2, w2, h2 = cv2.boundingRect(contour_info[1][0])
 
 				min_y, max_y = min(y, y2), max((y+h), (y2+h2))
@@ -88,8 +114,6 @@ class imageClean():
 
 		# Constructing a mask
 		mask = 255*np.ones(img_ero.shape)
-
-		cv2.fillConvexPoly(mask, max_contour[0], (255))
 
 		mask = cv2.dilate(mask, None, iterations=10)
 		mask = cv2.erode(mask, None, iterations=10)
@@ -119,7 +143,12 @@ class imageClean():
 		return masked
 
 
-	def resize(self, img_res: str, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
+	def resize(self, filename: str, img_res: str, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
+
+		if y == 0 or x == 0:
+			errors.append(filename)
+			y += 1
+			x += 1
 
 		img_border = border_remove(img_res, dim_x, dim_y, x, y, w, h)
 		img_square = square_image(img_border, dim_x, dim_y)
@@ -153,19 +182,22 @@ def open_folder():
 
 # FIX IMAGES NOT BEING RESIZED / SQUARED PROPERLY
 def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
-		# Finding current dimensions of the image
+		# Finding current dimensions of the image - CORRECT
 		dy = img.shape[0]
 		dx = img.shape[1]
 
+		# Calculating desired border size
 		desired_y = int(dy * 0.1)
 		desired_x = int(dx * 0.1)
 
+		# Calculating current border size (Y)
 		cur_bottom_y = dy - (y + h)
 		curp_bottom_y = cur_bottom_y / dy
 		cur_top_y = y
 		curp_top_y = cur_top_y / dy
 		curp_y = (cur_bottom_y + cur_top_y) / dy
 
+		# Calculating current border size (X)
 		cur_left_x = x
 		curp_left_x = cur_left_x / dx
 		cur_right_x = (dx - x) - w
@@ -174,6 +206,7 @@ def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 
 		# =====================================================================================================
 		# =================================== Increasing border size ==========================================
+		# Checking if the current border size is smaller than the desired
 		if curp_y < 0.2 or curp_x < 0.2:
 			bottom = 0
 			top = 0
@@ -186,6 +219,7 @@ def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 			desp_left_x = ((desired_x - cur_left_x) / cur_left_x)
 			desp_right_x = ((desired_x - cur_left_x) / cur_left_x)
 
+			# Calculating amount of border to add in each direction
 			if curp_bottom_y < 0.1:
 				bottom = desired_y - cur_bottom_y
 			if curp_top_y < 0.1:
@@ -227,6 +261,7 @@ def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 				img = cv2.resize(img, (int(dx * ratio), dim_y), interpolation=cv2.INTER_AREA)
 				return img
 		# ======================================= Decreasing border size ========================================
+		# If border sizes are above a certain value, decrease the current border size
 		elif curp_y > 0.2 and curp_x > 0.2:
 			pix_reduce_top = 0
 			pix_reduce_bottom = 0
@@ -281,6 +316,7 @@ def border_remove(img, dim_x: int, dim_y: int, x: int, y: int, w: int, h: int):
 
 
 def square_image(img, dim_x: int, dim_y: int):
+	# Squaring the image whilst maintaining aspect ratio
 	dy = img.shape[0]
 	dx = img.shape[1]
 	# Squaring the image
@@ -322,6 +358,8 @@ def square_image(img, dim_x: int, dim_y: int):
 if __name__ == '__main__':
 	cleaner = imageClean()
 
+	errors = []
+
 	# User-inputs for desired directories
 	print('Select the input folder:')
 	input_dir = open_folder()
@@ -332,12 +370,15 @@ if __name__ == '__main__':
 	# User-inputs for desired dimensions
 	dimension_x = int(input("Enter the desired image dimensions (X): "))
 	dimension_y = int(input("Enter the deisred image dimensions (Y): "))
+	print("\nThe insensitivity must be between 0 and 1, with 0.3 being recommended.\nHigher resolution images (or images with multiple items) may require a lower value.")
+	insensitivity = float(input("Enter the desired insensitivity: "))
 	print(os.listdir(input_dir))
 
 	for filename in os.listdir(input_dir):
 		if not filename.startswith('.'):
 			print(filename)
-			cleaner.main(filename, input_dir, output_dir, dimension_x, dimension_x)
+			cleaner.main(errors, filename, input_dir, output_dir, dimension_x, dimension_x, insensitivity)
 			gc.collect()
 
-	print('Finished editing!')
+	print('\nFinished editing!')
+	print(f'\nError editing files: {errors}')
