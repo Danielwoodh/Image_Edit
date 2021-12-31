@@ -16,7 +16,7 @@ This program was created to automatically edit images, removing the background, 
 ## Usage
 
 1. Open the terminal window and Cd into the directory containing the code.
-2. Run the following command in the terminal: ```python3 opencv_test.py```
+2. Run the following command in the terminal: ```python3 opencv_nn.py```
 3. Follow the instructions on the terminal screen.
 
 ## Potential Issues
